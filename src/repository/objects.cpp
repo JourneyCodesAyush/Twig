@@ -12,24 +12,6 @@ namespace twig::repository
 {
     namespace fs = std::filesystem;
 
-    // Anonymous and hidden implementation
-    namespace
-    {
-        void write_file(const std::string &path, const std::string &message)
-        {
-            std::ofstream file(path);
-            if (file.is_open())
-            {
-                file << message;
-                file.close();
-            }
-            else
-            {
-                throw std::runtime_error("Failed to create " + path);
-            }
-        }
-    } // namespace
-
     std::string repo_path(const GitRepository &repo, const std::vector<std::string> &path)
     {
         fs::path join_path;
@@ -110,14 +92,14 @@ namespace twig::repository
             auto file = repo_file(repo, false, {"description"});
             std::string description = "Unnamed repository; edit this file 'description' to name the repository.\n";
             if (file)
-                write_file(*file, description);
+                utils::write_file(*file, description);
         }
         {
             // .git/HEAD
             auto file = repo_file(repo, false, {"HEAD"});
             std::string description = "ref: refs/heads/master\n";
             if (file)
-                write_file(*file, description);
+                utils::write_file(*file, description);
         }
         {
             // .git/config
@@ -128,7 +110,7 @@ namespace twig::repository
             description += "\tbare=false\n";
 
             if (file)
-                write_file(*file, description);
+                utils::write_file(*file, description);
         }
 
         return repo;

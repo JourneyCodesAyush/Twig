@@ -5,6 +5,20 @@
 
 namespace twig::utils
 {
+    void write_file(const std::string &path, const std::string &message)
+    {
+        std::ofstream file(path);
+        if (file.is_open())
+        {
+            file << message;
+            file.close();
+        }
+        else
+        {
+            throw std::runtime_error("Failed to create " + path);
+        }
+    }
+
     std::string read_file_binary(const std::string &filename)
     {
         std::stringstream source;
