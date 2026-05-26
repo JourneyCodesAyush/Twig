@@ -1,0 +1,35 @@
+# Normalize all text files to LF in repo
+* text=auto eol=lf
+
+# Explicit text file types
+*.cpp   text
+*.hpp   text
+*.py    text
+*.sh    text
+*.md    text
+*.txt   text
+*.yml   text
+*.yaml  text
+*.json  text
+*.ini   text
+Makefile text
+
+# Binary files
+*.exe   binary
+*.dll   binary
+*.so    binary
+*.a     binary
+*.lib   binary
+*.o     binary
+*.obj   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+
+*.cpp   diff=cpp
+*.hpp   diff=cpp
+
+*.cpp linguist-language=C++
+*.hpp linguist-language=C++
