@@ -21,4 +21,17 @@ namespace twig::utils
         return source.str();
     }
 
+    void write_file_binary(const std::string &path, const std::string &message)
+    {
+        std::ofstream file(path, std::ios::binary);
+        if (file.is_open())
+        {
+            file << message;
+            file.close();
+        }
+        else
+        {
+            throw std::runtime_error("Failed to create " + path);
+        }
+    }
 } // namespace twig::utils

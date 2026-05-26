@@ -10,4 +10,5 @@ namespace twig::utils
     std::string decompress(const std::string &content);
 
     std::string read_file_binary(const std::string &filename);
+    void write_file_binary(const std::string &path, const std::string &message);
 } // namespace twig::utils
