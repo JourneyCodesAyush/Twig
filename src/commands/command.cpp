@@ -3,20 +3,21 @@
 #include "../include/commands/command.hpp"
 #include "../include/repository/objects.hpp"
 #include "../include/utils/utils.hpp"
+#include "../include/errors/error.hpp"
 
 namespace twig::commands
 {
-    ExitCode cmd_init(const ParseResult &args)
+    errors::ExitCode cmd_init(const ParseResult &args)
     {
         auto dir = args.get<std::string>("directory");
         std::cout << "[init] directory: " << dir << "\n";
 
         repository::GitRepository repo = repository::repo_create(dir);
 
-        return ExitCode::SUCCESS;
+        return errors::ExitCode::SUCCESS;
     }
 
-    ExitCode cmd_hash_object(const ParseResult &args)
+    errors::ExitCode cmd_hash_object(const ParseResult &args)
     {
         std::string path = args.get<std::string>("path");
         bool write = false;
@@ -39,6 +40,6 @@ namespace twig::commands
         std::string sha = repository::object_write(obj.get(), repo ? &(*repo) : nullptr);
         std::cout << sha << "\n";
 
-        return ExitCode::SUCCESS;
+        return errors::ExitCode::SUCCESS;
     }
 } // namespace twig::commands

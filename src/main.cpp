@@ -2,6 +2,7 @@
 
 #include "../include/argparse/argparse.hpp"
 #include "../include/commands/command.hpp"
+#include "../include/errors/error.hpp"
 
 int main(int argc, char **argv)
 {
@@ -36,12 +37,12 @@ int main(int argc, char **argv)
 
         if (subcmd == "init")
         {
-            ExitCode code = twig::commands::cmd_init(result);
+            twig::errors::ExitCode code = twig::commands::cmd_init(result);
             return static_cast<int>(code);
         }
         if (subcmd == "hash-object")
         {
-            ExitCode code = twig::commands::cmd_hash_object(result);
+            twig::errors::ExitCode code = twig::commands::cmd_hash_object(result);
             return static_cast<int>(code);
         }
     }
@@ -50,7 +51,7 @@ int main(int argc, char **argv)
         // Display error
         std::cerr << e.what() << '\n';
         // Exit gracefully
-        return static_cast<int>(ExitCode::FAILURE);
+        return static_cast<int>(twig::errors::ExitCode::FAILURE);
     }
     return 0;
 }
