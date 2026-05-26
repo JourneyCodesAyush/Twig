@@ -417,6 +417,11 @@ public:
             print_help();
             std::exit(1);
         }
+        if (args.size() == 2 && (args[1] == "-h" || args[1] == "--help"))
+        {
+            print_help();
+            std::exit(0);
+        }
 
         if (subcommands.count(args[1]) == 0)
         {
@@ -439,7 +444,8 @@ public:
 
         // ── description ───────────────────────────────────────
         std::cout << description << "\n\n";
-
+        std::cout << "options:\n"
+                  << "  -h, --help    Show this help message\n";
         // ── subcommand table ──────────────────────────────────
         // first pass — find longest subcommand name for alignment
         size_t col_width = 0;
