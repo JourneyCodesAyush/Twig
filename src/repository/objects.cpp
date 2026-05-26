@@ -6,6 +6,7 @@
 #include <exception>
 
 #include "../include/repository/objects.hpp"
+#include "../include/utils/utils.hpp"
 
 namespace twig::repository
 {
@@ -133,4 +134,50 @@ namespace twig::repository
         return repo;
     }
 
+    std::optional<GitRepository> repo_find(const std::string &path, bool required)
+    {
+        fs::path absolute_path = fs::absolute(path);
+
+        if (fs::is_directory(absolute_path / ".git"))
+        {
+            GitRepository repo;
+            repo.worktree = absolute_path.string();
+            repo.gitdir = (absolute_path / ".git").string();
+            return repo;
+        }
+
+        fs::path parent = absolute_path.parent_path();
+
+        if (absolute_path == parent)
+        {
+            if (required)
+                throw std::runtime_error("No git directory.");
+            else
+                return std::nullopt;
+        }
+        return repo_find(parent.string(), required);
+    }
+
+    std::string object_write(objects::GitObject *obj, const GitRepository *repo)
+    {
+        const std::string data = obj->serialize();
+        std::string result = obj->format + " ";
+        result += std::to_string(data.length());
+        result += std::string(1, '\0');
+        result += data;
+
+        std::string sha1 = utils::sha1(result);
+
+        if (repo)
+        {
+            std::optional<std::string> path = repo_file(*repo, true, {"objects", sha1.substr(0, 2), sha1.substr(2)});
+
+            if (path && !fs::exists(*path))
+            {
+                const std::string compressed = utils::compress(result);
+                utils::write_file_binary(*path, compressed);
+            }
+        }
+        return sha1;
+    }
 } // namespace twig::repository

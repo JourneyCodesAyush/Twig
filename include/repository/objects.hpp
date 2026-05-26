@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "./repo.hpp"
+#include "../objects/object.hpp"
 
 namespace twig::repository
 {
@@ -16,4 +17,7 @@ namespace twig::repository
 
     GitRepository repo_create(const std::string &path);
 
+    std::optional<GitRepository> repo_find(const std::string &path = ".", bool required = true);
+
+    std::string object_write(objects::GitObject *obj, const GitRepository *repo = nullptr);
 } // namespace twig::repository
