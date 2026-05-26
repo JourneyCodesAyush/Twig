@@ -14,6 +14,22 @@ int main(int argc, char **argv)
         Argument("directory")
             .default_value(std::string(".")));
 
+    auto &hash_object = parser.add_subcommand("hash-object", "Compute object ID and optionally create a blob from a file");
+    hash_object.add_argument(Argument("w")
+                                 .as_flag()
+                                 .short_flag_char('w')
+                                 .describe("Actually write the object into the object database"));
+
+    hash_object.add_argument(Argument("t")
+                                 .as_option()
+                                 .short_flag_char('t')
+                                 .default_value(std::string("blob"))
+                                 .describe("Specify the type of object to create"));
+
+    hash_object.add_argument(Argument("path")
+                                 .make_required()
+                                 .describe("Path to file to hash"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -21,6 +37,11 @@ int main(int argc, char **argv)
         if (subcmd == "init")
         {
             ExitCode code = twig::commands::cmd_init(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "hash-object")
+        {
+            ExitCode code = twig::commands::cmd_hash_object(result);
             return static_cast<int>(code);
         }
     }
