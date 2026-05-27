@@ -7,6 +7,7 @@
 
 #include "../include/repository/objects.hpp"
 #include "../include/utils/utils.hpp"
+#include "../include/errors/error.hpp"
 
 namespace twig::repository
 {
@@ -161,5 +162,48 @@ namespace twig::repository
             }
         }
         return sha1;
+    }
+
+    std::string object_find(const GitRepository &repo, std::string name, std::string format, bool follow)
+    {
+        return name;
+    }
+
+    std::unique_ptr<objects::GitObject> object_read(const GitRepository &repo, const std::string &sha)
+    {
+        std::optional<std::string> path_optional = repo_file(repo, false, {"objects", sha.substr(0, 2), sha.substr(2)});
+
+        if (!path_optional)
+        {
+            throw errors::GitException("Object not found.", errors::ExitCode::OBJECT_NOT_FOUND);
+        }
+
+        const std::string path = *path_optional;
+
+        if (!fs::is_regular_file(path))
+        {
+            throw errors::GitException("Object not found.", errors::ExitCode::OBJECT_NOT_FOUND);
+        }
+
+        std::string raw = utils::decompress(utils::read_file_binary(path));
+
+        size_t x = raw.find_first_of(' ');
+        const std::string &format = raw.substr(0, x);
+
+        size_t y = raw.find_first_of('\0', x);
+
+        size_t size = std::stoi(raw.substr(x, y - x));
+
+        if (size != (raw.length() - y - 1))
+        {
+            throw errors::GitException("Malformed object " + sha, errors::ExitCode::MALFORMED_OBJECT);
+        }
+
+        if (format == "blob")
+        {
+            return std::make_unique<objects::GitBlob>(raw.substr(y + 1));
+        }
+
+        throw errors::GitException("Unknown object type", errors::ExitCode::UNKNOWN_OBJECT_TYPE);
     }
 } // namespace twig::repository
