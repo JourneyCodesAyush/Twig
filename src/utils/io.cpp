@@ -2,9 +2,34 @@
 
 #include <sstream>
 #include <fstream>
+#include <iomanip>
 
 namespace twig::utils
 {
+    std::string bytes_to_hex(const std::string &bytes)
+    {
+        std::stringstream ss;
+        ss << std::hex << std::setfill('0');
+
+        for (const char &ch : bytes)
+        {
+            unsigned char byte = static_cast<unsigned char>(ch);
+            ss << std::setw(2) << static_cast<int>(byte);
+        }
+        return ss.str();
+    }
+
+    std::string hex_to_bytes(const std::string &hex)
+    {
+        std::string bytes;
+        for (size_t i = 0; i < hex.length(); i += 2)
+        {
+            unsigned char byte = static_cast<unsigned char>(std::stoul(hex.substr(i, 2), nullptr, 16));
+            bytes += static_cast<char>(byte);
+        }
+        return bytes;
+    }
+
     void write_file(const std::string &path, const std::string &message)
     {
         std::ofstream file(path);
