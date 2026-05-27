@@ -19,6 +19,22 @@ namespace twig::utils
         }
     }
 
+    std::string read_file(const std::string &filename)
+    {
+        std::stringstream source;
+        std::ifstream infile(filename);
+
+        if (!infile.is_open())
+        {
+            throw std::runtime_error("Could not open file: " + filename);
+        }
+        source << infile.rdbuf();
+
+        infile.close();
+
+        return source.str();
+    }
+
     std::string read_file_binary(const std::string &filename)
     {
         std::stringstream source;
