@@ -31,6 +31,16 @@ int main(int argc, char **argv)
                                  .make_required()
                                  .describe("Path to file to hash"));
 
+    auto &cat_file = parser.add_subcommand("cat-file", "Display object contents");
+
+    cat_file.add_argument(
+        Argument("type")
+            .make_required());
+
+    cat_file.add_argument(
+        Argument("object")
+            .make_required());
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -43,6 +53,11 @@ int main(int argc, char **argv)
         if (subcmd == "hash-object")
         {
             twig::errors::ExitCode code = twig::commands::cmd_hash_object(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "cat-file")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_cat_file(result);
             return static_cast<int>(code);
         }
     }
