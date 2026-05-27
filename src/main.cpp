@@ -72,6 +72,11 @@ int main(int argc, char **argv)
             return static_cast<int>(code);
         }
     }
+    catch (const twig::errors::GitException &e)
+    {
+        std::cerr << e.what() << '\n';
+        return static_cast<int>(e.code);
+    }
     catch (const std::exception &e)
     {
         // Display error
