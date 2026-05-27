@@ -8,4 +8,5 @@ namespace twig::commands
     errors::ExitCode cmd_init(const ParseResult &args);
     errors::ExitCode cmd_hash_object(const ParseResult &args);
     errors::ExitCode cmd_cat_file(const ParseResult &args);
+    errors::ExitCode cmd_log(const ParseResult &args);
 } // namespace twig::commands

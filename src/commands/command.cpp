@@ -1,4 +1,6 @@
 #include <memory>
+#include <unordered_set>
+#include <filesystem>
 
 #include "../include/commands/command.hpp"
 #include "../include/repository/objects.hpp"
@@ -7,12 +9,92 @@
 
 namespace twig::commands
 {
+    namespace fs = std::filesystem;
     namespace
     {
         void cat_file(const repository::GitRepository &repo, const std::string &sha, const std::string &type, std::string format = "")
         {
             std::unique_ptr<objects::GitObject> object = repository::object_read(repo, repository::object_find(repo, sha, format));
             std::cout << object->serialize() << "\n";
+        }
+
+        void log_graphviz(repository::GitRepository &repo, const std::string &sha, std::unordered_set<std::string> &seen)
+        {
+            if (seen.find(sha) != seen.end())
+                return;
+            seen.insert(sha);
+
+            std::unique_ptr<objects::GitObject> obj = repository::object_read(repo, sha);
+
+            objects::GitCommit *commit = dynamic_cast<objects::GitCommit *>(obj.get());
+            if (!commit)
+                throw errors::GitException("Not a commit object", errors::ExitCode::MALFORMED_OBJECT);
+
+            auto kvlm = commit->kvlm;
+            std::string message;
+            for (const auto &[key, value] : kvlm)
+            {
+                if (key == "None")
+                    message = value;
+            }
+
+            {
+                // Replacing '\\' with '\\\\'
+                size_t i = 0;
+                while ((i = message.find("\\", i)) != std::string::npos)
+                {
+                    message.replace(i, 1, "\\\\");
+                    i += 2;
+                }
+            }
+            {
+                // Replacing '\"' with '\\\"'
+                size_t i = 0;
+                while ((i = message.find("\"", i)) != std::string::npos)
+                {
+                    message.replace(i, 1, "\\\"");
+                    i += 1;
+                }
+            }
+
+            if (message.find_first_of("\n") != std::string::npos)
+            {
+                message = message.substr(0, message.find_first_of("\n"));
+            }
+
+            // print(f "  c_{sha} [label=\"{sha[0:7]}: {message}\"]")
+            std::cout
+                << "  c_"
+                << sha
+                << " [label=\""
+                << sha.substr(0, 7)
+                << ": "
+                << message
+                << "\"]";
+
+            if (commit->format != "commit")
+                return;
+
+            std::vector<std::string> parents;
+            bool found_parent = false;
+            for (size_t i = 0; i < kvlm.size(); i++)
+            {
+                if (kvlm[i].first == "parent")
+                {
+                    found_parent = true;
+                    parents.push_back(kvlm[i].second);
+                }
+            }
+
+            // Base case
+            if (!found_parent)
+                return;
+
+            for (const auto &parent_sha : parents)
+            {
+                std::cout << "  c_" << sha << " -> c_" << parent_sha << ";\n";
+                log_graphviz(repo, parent_sha, seen);
+            }
         }
     } // namespace
 
@@ -66,4 +148,50 @@ namespace twig::commands
         return errors::ExitCode::SUCCESS;
     }
 
+    errors::ExitCode cmd_log(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+        {
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+        }
+
+        std::string commit = args.get<std::string>("commit");
+
+        std::string sha;
+        if (commit == "HEAD")
+        {
+            std::string path = (fs::path((*repo).gitdir) / "HEAD").string();
+            sha = utils::read_file(path);
+        }
+        else
+        {
+            sha = commit;
+        }
+
+        if (sha.substr(0, 5) == "ref: ")
+        {
+            sha = sha.substr(5);
+            if (!sha.empty() && sha.back() == '\n')
+                sha.pop_back();
+            std::string ref_path = (fs::path((*repo).gitdir) / sha).string();
+            sha = utils::read_file(ref_path);
+        }
+
+        // Strip the newline
+        if (!sha.empty() && sha.back() == '\n')
+            sha.pop_back();
+
+        std::cout << "digraph wyaglog{\n"
+                  << "  node[shape=rect]\n";
+
+        std::unordered_set<std::string> seen;
+
+        // Will use this later
+        // std::string sha = repository::object_find(*repo, args.get<std::string>("commit"));
+
+        log_graphviz((*repo), sha, seen);
+        std::cout << "}\n";
+        return errors::ExitCode::SUCCESS;
+    }
 } // namespace twig::commands
