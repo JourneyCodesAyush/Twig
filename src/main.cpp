@@ -41,6 +41,12 @@ int main(int argc, char **argv)
         Argument("object")
             .make_required());
 
+    auto &log = parser.add_subcommand("log", "Display history of a given commit");
+
+    log.add_argument(
+        Argument("commit")
+            .default_value("HEAD"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -58,6 +64,11 @@ int main(int argc, char **argv)
         if (subcmd == "cat-file")
         {
             twig::errors::ExitCode code = twig::commands::cmd_cat_file(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "log")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_log(result);
             return static_cast<int>(code);
         }
     }
