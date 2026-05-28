@@ -11,6 +11,7 @@ namespace twig::utils
 
     std::string bytes_to_hex(const std::string &bytes);
     std::string hex_to_bytes(const std::string &hex);
+    bool is_hex(const std::string &s);
 
     void write_file(const std::string &path, const std::string &message);
     std::string read_file(const std::string &filename);

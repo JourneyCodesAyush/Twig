@@ -1,5 +1,6 @@
 #include "../include/utils/utils.hpp"
 
+#include <algorithm>
 #include <sstream>
 #include <fstream>
 #include <iomanip>
@@ -28,6 +29,11 @@ namespace twig::utils
             bytes += static_cast<char>(byte);
         }
         return bytes;
+    }
+
+    bool is_hex(const std::string &s)
+    {
+        return s.length() >= 4 && s.length() <= 40 && std::all_of(s.begin(), s.end(), ::isxdigit);
     }
 
     void write_file(const std::string &path, const std::string &message)
