@@ -51,6 +51,12 @@ namespace twig::objects
         void deserialize(const std::string &data) { this->kvlm = kvlm_parse(data); }
     };
 
+    class GitTag : public GitCommit
+    {
+    public:
+        GitTag(const std::string &data) : GitCommit(data) { this->format = "tag"; }
+    };
+
     class GitTreeLeaf
     {
     public:
