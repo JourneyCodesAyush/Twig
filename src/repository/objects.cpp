@@ -207,6 +207,11 @@ namespace twig::repository
         {
             return std::make_unique<objects::GitCommit>(raw.substr(y + 1));
         }
+        if (format == "tree")
+        {
+            return std::make_unique<objects::GitTree>(raw.substr(y + 1));
+        }
+
         throw errors::GitException("Unknown object type", errors::ExitCode::UNKNOWN_OBJECT_TYPE);
     }
 } // namespace twig::repository
