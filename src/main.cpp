@@ -60,6 +60,16 @@ int main(int argc, char **argv)
         Argument("tree")
             .describe("A tree-ish object"));
 
+    auto &checkout = parser.add_subcommand("checkout", "Checkout a commit inside of a directory");
+
+    checkout.add_argument(
+        Argument("commit")
+            .describe("The commit or tree to checkout"));
+
+    checkout.add_argument(
+        Argument("path")
+            .describe("The EMPTY directory to checkout on"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -87,6 +97,11 @@ int main(int argc, char **argv)
         if (subcmd == "ls-tree")
         {
             twig::errors::ExitCode code = twig::commands::cmd_ls_tree(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "checkout")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_checkout(result);
             return static_cast<int>(code);
         }
     }
