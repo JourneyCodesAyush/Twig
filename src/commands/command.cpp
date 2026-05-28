@@ -14,7 +14,12 @@ namespace twig::commands
     {
         void cat_file(const repository::GitRepository &repo, const std::string &sha, const std::string &type, std::string format = "")
         {
-            std::unique_ptr<objects::GitObject> object = repository::object_read(repo, repository::object_find(repo, sha, format));
+            std::optional<std::string> new_sha = repository::object_find(repo, sha, format);
+
+            if (!new_sha)
+                throw errors::GitException("Object not found: " + sha, errors::ExitCode::OBJECT_NOT_FOUND);
+
+            std::unique_ptr<objects::GitObject> object = repository::object_read(repo, *new_sha);
             std::cout << object->serialize() << "\n";
         }
 
@@ -183,7 +188,11 @@ namespace twig::commands
 
         void tag_create(const repository::GitRepository &repo, const std::string &name, const std::string &ref, bool create_tag = false)
         {
-            std::string sha = repository::object_find(repo, ref);
+            std::optional<std::string> sha_optional = repository::object_find(repo, ref);
+            if (!sha_optional)
+                throw errors::GitException("Reference not found " + ref, errors::ExitCode::OBJECT_NOT_FOUND);
+
+            std::string sha = *sha_optional;
             if (create_tag)
             {
                 std::unique_ptr<objects::GitTag> tag = std::make_unique<objects::GitTag>("");
@@ -266,39 +275,16 @@ namespace twig::commands
 
         std::string commit = args.get<std::string>("commit");
 
-        std::string sha;
-        if (commit == "HEAD")
-        {
-            std::string path = (fs::path((*repo).gitdir) / "HEAD").string();
-            sha = utils::read_file(path);
-        }
-        else
-        {
-            sha = commit;
-        }
-
-        if (sha.substr(0, 5) == "ref: ")
-        {
-            sha = sha.substr(5);
-            if (!sha.empty() && sha.back() == '\n')
-                sha.pop_back();
-            std::string ref_path = (fs::path((*repo).gitdir) / sha).string();
-            sha = utils::read_file(ref_path);
-        }
-
-        // Strip the newline
-        if (!sha.empty() && sha.back() == '\n')
-            sha.pop_back();
+        std::optional<std::string> sha = repository::object_find(*repo, args.get<std::string>("commit"));
+        if (!sha)
+            throw errors::GitException("Object not found: " + args.get<std::string>("commit"), errors::ExitCode::OBJECT_NOT_FOUND);
 
         std::cout << "digraph wyaglog{\n"
                   << "  node[shape=rect]\n";
 
         std::unordered_set<std::string> seen;
 
-        // Will use this later
-        // std::string sha = repository::object_find(*repo, args.get<std::string>("commit"));
-
-        log_graphviz((*repo), sha, seen);
+        log_graphviz((*repo), *sha, seen);
         std::cout << "}\n";
         return errors::ExitCode::SUCCESS;
     }
@@ -312,8 +298,12 @@ namespace twig::commands
         bool recursive = args.get<bool>("r");
         std::string tree = args.get<std::string>("tree");
 
-        ls_tree(*repo, tree, recursive);
+        std::optional<std::string> resolved = repository::object_find(*repo, tree, "tree");
 
+        if (!resolved)
+            throw errors::GitException("Not a tree object", errors::ExitCode::OBJECT_NOT_FOUND);
+
+        ls_tree(*repo, *resolved, recursive);
         return errors::ExitCode::SUCCESS;
     }
 
@@ -326,7 +316,11 @@ namespace twig::commands
         std::string commit = args.get<std::string>("commit");
         std::string path = args.get<std::string>("path");
 
-        std::unique_ptr<objects::GitObject> object = repository::object_read(*repo, repository::object_find(*repo, commit, "", true));
+        std::optional<std::string> obj = repository::object_find(*repo, commit, "", true);
+        if (!obj)
+            throw errors::GitException("Object not found " + commit, errors::ExitCode::OBJECT_NOT_FOUND);
+
+        std::unique_ptr<objects::GitObject> object = repository::object_read(*repo, *obj);
 
         if (object->format == "commit")
         {
