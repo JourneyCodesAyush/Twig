@@ -47,6 +47,19 @@ int main(int argc, char **argv)
         Argument("commit")
             .default_value("HEAD"));
 
+    auto &ls_tree = parser.add_subcommand("ls-tree", "Pretty-print a tree object");
+
+    ls_tree.add_argument(
+        Argument("r")
+            .short_flag_char('r')
+            .as_flag()
+            .default_value(false)
+            .describe("Recurse into sub-trees"));
+
+    ls_tree.add_argument(
+        Argument("tree")
+            .describe("A tree-ish object"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -69,6 +82,11 @@ int main(int argc, char **argv)
         if (subcmd == "log")
         {
             twig::errors::ExitCode code = twig::commands::cmd_log(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "ls-tree")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_ls_tree(result);
             return static_cast<int>(code);
         }
     }
