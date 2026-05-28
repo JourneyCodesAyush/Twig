@@ -72,6 +72,23 @@ int main(int argc, char **argv)
 
     auto &show_ref = parser.add_subcommand("show-ref", "List references");
 
+    auto &tag = parser.add_subcommand("tag", "List and create tags");
+
+    tag.add_argument(
+        Argument("a")
+            .short_flag_char('a')
+            .as_flag()
+            .default_value(false)
+            .describe("Whether to create a tag object"));
+
+    tag.add_argument(Argument("name")
+                         .default_value("")
+                         .describe("The new tag's name"));
+
+    tag.add_argument(Argument("object")
+                         .default_value("HEAD")
+                         .describe("The object the new tag will point to"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -109,6 +126,11 @@ int main(int argc, char **argv)
         if (subcmd == "show-ref")
         {
             twig::errors::ExitCode code = twig::commands::cmd_show_ref(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "tag")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_tag(result);
             return static_cast<int>(code);
         }
     }
