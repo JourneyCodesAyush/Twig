@@ -96,6 +96,47 @@ namespace twig::commands
                 log_graphviz(repo, parent_sha, seen);
             }
         }
+
+        void ls_tree(repository::GitRepository &repo, const std::string &sha, bool recursive, const std::string &prefix = "")
+        {
+            std::unique_ptr<objects::GitObject> obj = repository::object_read(repo, sha);
+
+            objects::GitTree *tree = dynamic_cast<objects::GitTree *>(obj.get());
+            if (!tree)
+                throw errors::GitException("Not a tree object", errors::ExitCode::MALFORMED_OBJECT);
+
+            for (const auto &leaf : tree->leaves)
+            {
+                std::string type = leaf.mode.substr(0, 2);
+
+                if (type == "04")
+                    type = "tree";
+                // A regular file
+                else if (type == "10")
+                    type = "blob";
+                // A symlink. Blob contents in link target
+                else if (type == "12")
+                    type = "blob";
+                // A submodule
+                else if (type == "16")
+                    type = "commit";
+                else
+                    throw errors::GitException("Weird tree leaf mode: " + leaf.mode, errors::ExitCode::MALFORMED_OBJECT);
+
+                if (!recursive || type != "tree")
+                    std::cout
+                        << leaf.mode
+                        << " "
+                        << type
+                        << " "
+                        << leaf.sha
+                        << "\t"
+                        << (fs::path(prefix) / leaf.path).string()
+                        << "\n";
+                else
+                    ls_tree(repo, leaf.sha, recursive, (fs::path(prefix) / fs::path(leaf.path)).string());
+            }
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -194,4 +235,19 @@ namespace twig::commands
         std::cout << "}\n";
         return errors::ExitCode::SUCCESS;
     }
+
+    errors::ExitCode cmd_ls_tree(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        bool recursive = args.get<bool>("r");
+        std::string tree = args.get<std::string>("tree");
+
+        ls_tree(*repo, tree, recursive);
+
+        return errors::ExitCode::SUCCESS;
+    }
+
 } // namespace twig::commands
