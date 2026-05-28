@@ -20,7 +20,8 @@ namespace twig::repository
 
     std::optional<GitRepository> repo_find(const std::string &path = ".", bool required = true);
 
-    std::string object_find(const GitRepository &repo, std::string name, std::string format = "", bool follow = true);
+    std::vector<std::string> object_resolve(const GitRepository &repo, const std::string &name);
+    std::optional<std::string> object_find(const GitRepository &repo, std::string name, std::string format = "", bool follow = true);
 
     std::string object_write(objects::GitObject *obj, const GitRepository *repo = nullptr);
     std::unique_ptr<objects::GitObject> object_read(const GitRepository &repo, const std::string &sha);

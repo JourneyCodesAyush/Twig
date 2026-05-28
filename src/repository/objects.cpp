@@ -3,6 +3,7 @@
 #include <optional>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <exception>
 
@@ -165,8 +166,115 @@ namespace twig::repository
         return sha1;
     }
 
-    std::string object_find(const GitRepository &repo, std::string name, std::string format, bool follow)
+    std::vector<std::string> object_resolve(const GitRepository &repo, const std::string &name)
     {
+        std::vector<std::string> candidates;
+
+        if (name == "HEAD")
+        {
+            std::optional<std::string> ref = ref_resolve(repo, (fs::path(repo.gitdir) / "HEAD").string());
+            if (!ref)
+                throw errors::GitException("HEAD not found", errors::ExitCode::OBJECT_NOT_FOUND);
+            return {(*ref)};
+        }
+
+        if (utils::is_hex(name))
+        {
+            std::string new_name = name;
+            // Lowercase
+            for (size_t i = 0; i < new_name.length(); i++)
+            {
+                if (std::isupper(new_name[i]))
+                    new_name[i] = std::tolower(new_name[i]);
+            }
+
+            std::string prefix = new_name.substr(0, 2);
+            std::optional<std::string> path = repo_dir(repo, false, {"objects", prefix});
+            if (path)
+            {
+                std::string remaining = new_name.substr(2);
+                for (const auto &entry : fs::directory_iterator(*path))
+                {
+                    if (entry.path().filename().string().rfind(remaining, 0) == 0)
+                        candidates.push_back(prefix + entry.path().filename().string());
+                }
+            }
+        }
+
+        std::optional<std::string> as_tag = ref_resolve(repo, (fs::path(repo.gitdir) / "refs" / "tags" / name).string());
+        if (as_tag)
+            candidates.push_back(*as_tag);
+
+        std::optional<std::string> as_branch = ref_resolve(repo, (fs::path(repo.gitdir) / "refs" / "heads" / name).string());
+        if (as_branch)
+            candidates.push_back(*as_branch);
+
+        std::optional<std::string> as_remote_branch = ref_resolve(repo, (fs::path(repo.gitdir) / "refs" / "remotes" / name).string());
+        if (as_remote_branch)
+            candidates.push_back(*as_remote_branch);
+
+        return candidates;
+    }
+
+    std::optional<std::string> object_find(const GitRepository &repo, std::string name, std::string format, bool follow)
+    {
+        std::vector<std::string> sha_s = object_resolve(repo, name);
+        if (sha_s.empty())
+            throw errors::GitException("No such reference '" + name + "'.", errors::ExitCode::FAILURE);
+
+        if (sha_s.size() > 1)
+        {
+            std::stringstream references;
+            references << "\n - ";
+            for (auto &sh : sha_s)
+            {
+                references << "\n - " << sh;
+            }
+            throw errors::GitException("Ambiguous reference '" + name + "': Candidates are: " + references.str(), errors::ExitCode::FAILURE);
+        }
+
+        std::string sha = sha_s[0];
+
+        if (format == "")
+            return sha;
+
+        while (1)
+        {
+            std::unique_ptr<twig::objects::GitObject> obj = object_read(repo, sha);
+            if (obj->format == format)
+                return sha;
+
+            if (!follow)
+                return std::nullopt;
+
+            if (obj->format == "tag")
+            {
+                objects::GitTag *tag = dynamic_cast<objects::GitTag *>(obj.get());
+                for (const auto &[key, value] : tag->kvlm)
+                {
+                    if (key == "object")
+                    {
+                        sha = value;
+                        break;
+                    }
+                }
+            }
+            else if (obj->format == "commit" && format == "tree")
+            {
+                objects::GitCommit *commit = dynamic_cast<objects::GitCommit *>(obj.get());
+                for (const auto &[key, value] : commit->kvlm)
+                {
+                    if (key == "tree")
+                    {
+                        sha = value;
+                        break;
+                    }
+                }
+            }
+            else
+                return std::nullopt;
+        }
+
         return name;
     }
 
