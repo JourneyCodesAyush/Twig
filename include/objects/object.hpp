@@ -60,4 +60,20 @@ namespace twig::objects
         GitTreeLeaf(const std::string &mode_, const std::string &path_, const std::string &sha_) : mode(mode_), path(path_), sha(sha_) {}
     };
 
+    class GitTree : public GitObject
+    {
+    public:
+        std::vector<GitTreeLeaf> leaves;
+
+        GitTree(const std ::string &data) : GitObject("tree") { this->leaves = tree_parse(data); }
+
+        std::string serialize() const override
+        {
+            std::vector<GitTreeLeaf> copy = leaves;
+            return tree_serialize(copy);
+        }
+
+        void deserialize(const std::string &data) { this->leaves = tree_parse(data); }
+    };
+
 } // namespace twig::objects
