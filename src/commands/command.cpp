@@ -174,6 +174,36 @@ namespace twig::commands
                     << path.substr(repo.gitdir.length() + 1)
                     << "\n";
         }
+
+        void ref_create(const repository::GitRepository &repo, const std::string &ref_name, const std::string &sha)
+        {
+            std::string path = (fs::path(repo.gitdir) / "refs" / ref_name).string();
+            utils::write_file(path, sha + "\n");
+        }
+
+        void tag_create(const repository::GitRepository &repo, const std::string &name, const std::string &ref, bool create_tag = false)
+        {
+            std::string sha = repository::object_find(repo, ref);
+            if (create_tag)
+            {
+                std::unique_ptr<objects::GitTag> tag = std::make_unique<objects::GitTag>("");
+                std::vector<std::pair<std::string, std::string>> kvlm;
+                kvlm.emplace_back("object", sha);
+                kvlm.emplace_back("type", "commit");
+                kvlm.emplace_back("tag", name);
+                kvlm.emplace_back("tagger", "Tagger <tagger@tagme.com>");
+                kvlm.emplace_back("None", "A generated tag which won't let you customize the message");
+
+                tag->kvlm = kvlm;
+
+                std::string tag_sha = repository::object_write(tag.get(), &repo);
+                ref_create(repo, "tags/" + name, tag_sha);
+            }
+            else
+            {
+                ref_create(repo, "tags/" + name, sha);
+            }
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -340,6 +370,26 @@ namespace twig::commands
         auto refs = repository::ref_list(*repo);
 
         show_ref(*repo, refs);
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_tag(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        std::string name = args.get<std::string>("name");
+        std::string ref = args.get<std::string>("object");
+        bool create_tag = args.get<bool>("a");
+
+        if (name.empty())
+        {
+            const auto refs = repository::ref_list(*repo);
+            show_ref(*repo, refs, false);
+            return errors::ExitCode::SUCCESS;
+        }
+        tag_create(*repo, name, ref, create_tag);
         return errors::ExitCode::SUCCESS;
     }
 } // namespace twig::commands
