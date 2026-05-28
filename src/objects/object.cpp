@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <sstream>
 
 #include "../include/objects/object.hpp"
 #include "../include/errors/error.hpp"
+#include "../include/utils/utils.hpp"
 
 namespace twig::objects
 {
@@ -80,4 +82,69 @@ namespace twig::objects
         return ss.str();
     }
 
+    GitTreeLeaf tree_parse_one(const std::string &raw, int &update_pos, int start)
+    {
+        // Find the space terminator of the mode
+        size_t x = raw.find(' ', start);
+
+        if (x == std::string::npos || ((x - start) != 5 && (x - start) != 6))
+            throw errors::GitException("Malformed object found while parsing tree", errors::ExitCode::MALFORMED_OBJECT);
+
+        // Read the mode
+        std::string mode = raw.substr(start, x - start);
+        if (mode.length() == 5)
+            mode = "0" + mode;
+
+        // Find the NULL terminator of   the path
+        size_t y = raw.find('\x00', x);
+        // Read the path
+        std::string path = raw.substr(x + 1, y - x - 1);
+
+        std::string sha_bytes = raw.substr(y + 1, 20);
+
+        std::string sha = utils::bytes_to_hex(sha_bytes);
+
+        update_pos = y + 21;
+        return GitTreeLeaf(mode, path, sha);
+    }
+
+    std::vector<GitTreeLeaf> tree_parse(const std::string &raw)
+    {
+        std::vector<GitTreeLeaf> leaves;
+        int length = raw.length();
+
+        int pos = 0;
+        while (pos < length)
+        {
+            leaves.push_back(tree_parse_one(raw, pos, pos));
+        }
+        return leaves;
+    }
+
+    std::string tree_serialize(std::vector<GitTreeLeaf> &leaves)
+    {
+        std::sort(leaves.begin(), leaves.end(), [&](const GitTreeLeaf &leaf1, const GitTreeLeaf &leaf2)
+                  {
+                    std::string path1 = leaf1.path;
+                    std::string path2 = leaf2.path;
+            if(leaf1.mode.length() > 1 && leaf1.mode[0] == '4'){
+                path1 += "/";
+            }
+            if(leaf2.mode.length() > 1 && leaf2.mode[0] == '4'){
+                path2 += "/";
+            }
+        return path1 < path2; });
+
+        std::string serialized;
+        for (const auto &leaf : leaves)
+        {
+            serialized += leaf.mode;
+            serialized += std::string(1, ' ');
+            serialized += leaf.path;
+            serialized += std::string(1, '\0');
+            serialized += utils::hex_to_bytes(leaf.sha);
+        }
+
+        return serialized;
+    }
 } // namespace twig::objects

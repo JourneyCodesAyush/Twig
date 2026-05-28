@@ -5,8 +5,15 @@
 
 namespace twig::objects
 {
+    class GitTreeLeaf;
+
     std::vector<std::pair<std::string, std::string>> kvlm_parse(const std::string &raw);
     std::string kvlm_serialize(const std::vector<std::pair<std::string, std::string>> &kvlm);
+
+    GitTreeLeaf tree_parse_one(const std::string &raw, int &update_pos, int start = 0);
+    std::vector<GitTreeLeaf> tree_parse(const std::string &raw);
+
+    std::string tree_serialize(std::vector<GitTreeLeaf> &leaves);
 
     class GitObject
     {
@@ -43,4 +50,14 @@ namespace twig::objects
 
         void deserialize(const std::string &data) { this->kvlm = kvlm_parse(data); }
     };
+
+    class GitTreeLeaf
+    {
+    public:
+        std::string mode;
+        std::string path;
+        std::string sha;
+        GitTreeLeaf(const std::string &mode_, const std::string &path_, const std::string &sha_) : mode(mode_), path(path_), sha(sha_) {}
+    };
+
 } // namespace twig::objects
