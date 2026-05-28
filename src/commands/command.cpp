@@ -137,6 +137,34 @@ namespace twig::commands
                     ls_tree(repo, leaf.sha, recursive, (fs::path(prefix) / fs::path(leaf.path)).string());
             }
         }
+
+        void tree_checkout(const repository::GitRepository &repo, const objects::GitTree &object, const std::string &path)
+        {
+            for (const auto &leaf : object.leaves)
+            {
+                std::unique_ptr<twig::objects::GitObject> obj = repository::object_read(repo, leaf.sha);
+                std::string destination = (fs::path(path) / leaf.path).string();
+
+                if (obj->format == "tree")
+                {
+                    fs::create_directory(destination);
+
+                    objects::GitTree *tree = dynamic_cast<objects::GitTree *>(obj.get());
+                    if (!tree)
+                        throw errors::GitException("Not a tree object", errors::ExitCode::MALFORMED_OBJECT);
+
+                    tree_checkout(repo, *tree, destination);
+                }
+                else if (obj->format == "blob")
+                {
+                    objects::GitBlob *blob = dynamic_cast<objects::GitBlob *>(obj.get());
+                    if (!blob)
+                        throw errors::GitException("Not a blob object", errors::ExitCode::MALFORMED_OBJECT);
+
+                    utils::write_file_binary(destination, blob->blobdata);
+                }
+            }
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -250,4 +278,47 @@ namespace twig::commands
         return errors::ExitCode::SUCCESS;
     }
 
+    errors::ExitCode cmd_checkout(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        std::string commit = args.get<std::string>("commit");
+        std::string path = args.get<std::string>("path");
+
+        std::unique_ptr<objects::GitObject> object = repository::object_read(*repo, repository::object_find(*repo, commit, "", true));
+
+        if (object->format == "commit")
+        {
+            objects::GitCommit *comm = dynamic_cast<objects::GitCommit *>(object.get());
+            for (const auto &[key, val] : comm->kvlm)
+            {
+                if (key == "tree")
+                {
+                    object = repository::object_read(*repo, val);
+                    break;
+                }
+            }
+        }
+
+        if (fs::exists(path))
+        {
+            if (!fs::is_directory(path))
+                throw errors::GitException("Not a directory", errors::ExitCode::IO_ERROR);
+            if (!fs::is_empty(path))
+                throw errors::GitException("Not empty '" + path + "'", errors::ExitCode::IO_ERROR);
+        }
+        else
+        {
+            fs::create_directories(path);
+        }
+
+        objects::GitTree *tree = dynamic_cast<objects::GitTree *>(object.get());
+        if (!tree)
+            throw errors::GitException("Not a tree object", errors::ExitCode::MALFORMED_OBJECT);
+        tree_checkout(*repo, *tree, fs::absolute(path).string());
+
+        return errors::ExitCode::SUCCESS;
+    }
 } // namespace twig::commands
