@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <string>
 #include <optional>
 #include <filesystem>
@@ -213,5 +214,54 @@ namespace twig::repository
         }
 
         throw errors::GitException("Unknown object type", errors::ExitCode::UNKNOWN_OBJECT_TYPE);
+    }
+
+    std::optional<std::string> ref_resolve(const GitRepository &repo, const std::string &ref)
+    {
+        if (!fs::is_regular_file(ref))
+            return std::nullopt;
+
+        std::string data = utils::read_file(ref);
+        // Drop the \n
+        if (data.size() > 0 && data.back() == '\n')
+            data.pop_back();
+
+        if (data.rfind("ref: ", 0) == 0)
+            return ref_resolve(repo, (fs::path(repo.gitdir) / data.substr(5)).string());
+        else
+            return data;
+    }
+
+    std::vector<std::pair<std::string, std::string>> ref_list(const GitRepository &repo, std::optional<std::string> path)
+    {
+        if (!path)
+            path = repo_dir(repo, false, {"refs"});
+
+        std::vector<std::pair<std::string, std::string>> list;
+
+        // Sort the entries in the directory
+        std::vector<fs::directory_entry> entries;
+        for (const auto &entry : fs::directory_iterator(*path))
+            entries.push_back(entry);
+        std::sort(entries.begin(), entries.end());
+
+        for (const auto &entry : entries)
+        {
+            fs::path can = entry.path();
+            if (fs::is_directory(can))
+            {
+                auto sub = ref_list(repo, can.string());
+                list.insert(list.end(), sub.begin(), sub.end());
+            }
+            else
+            {
+                std::optional<std::string> sha = ref_resolve(repo, can);
+                if (!sha)
+                    throw errors::GitException("Malformed object", errors::ExitCode::MALFORMED_OBJECT);
+                list.push_back({can.string(), *sha});
+            }
+        }
+
+        return list;
     }
 } // namespace twig::repository

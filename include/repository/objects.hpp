@@ -24,4 +24,7 @@ namespace twig::repository
 
     std::string object_write(objects::GitObject *obj, const GitRepository *repo = nullptr);
     std::unique_ptr<objects::GitObject> object_read(const GitRepository &repo, const std::string &sha);
+
+    std::optional<std::string> ref_resolve(const GitRepository &repo, const std::string &ref);
+    std::vector<std::pair<std::string, std::string>> ref_list(const GitRepository &repo, std::optional<std::string> path = std::nullopt);
 } // namespace twig::repository
