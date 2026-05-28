@@ -70,6 +70,8 @@ int main(int argc, char **argv)
         Argument("path")
             .describe("The EMPTY directory to checkout on"));
 
+    auto &show_ref = parser.add_subcommand("show-ref", "List references");
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -102,6 +104,11 @@ int main(int argc, char **argv)
         if (subcmd == "checkout")
         {
             twig::errors::ExitCode code = twig::commands::cmd_checkout(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "show-ref")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_show_ref(result);
             return static_cast<int>(code);
         }
     }
