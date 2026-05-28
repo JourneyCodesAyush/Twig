@@ -165,6 +165,15 @@ namespace twig::commands
                 }
             }
         }
+
+        void show_ref(const repository::GitRepository &repo, const std::vector<std::pair<std::string, std::string>> &refs, bool with_hash = true)
+        {
+            for (const auto &[path, sha] : refs)
+                std::cout
+                    << (with_hash ? sha + " " : "")
+                    << path.substr(repo.gitdir.length() + 1)
+                    << "\n";
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -319,6 +328,18 @@ namespace twig::commands
             throw errors::GitException("Not a tree object", errors::ExitCode::MALFORMED_OBJECT);
         tree_checkout(*repo, *tree, fs::absolute(path).string());
 
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_show_ref(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        auto refs = repository::ref_list(*repo);
+
+        show_ref(*repo, refs);
         return errors::ExitCode::SUCCESS;
     }
 } // namespace twig::commands
