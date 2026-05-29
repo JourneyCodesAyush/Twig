@@ -386,4 +386,26 @@ namespace twig::commands
         tag_create(*repo, name, ref, create_tag);
         return errors::ExitCode::SUCCESS;
     }
+
+    errors::ExitCode cmd_rev_parse(const ParseResult &args)
+    {
+        std::string format;
+        if (args.has("type"))
+            format = args.get<std::string>("type");
+        std::string name = args.get<std::string>("name");
+
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        std::optional<std::string> output = repository::object_find(*repo, name, format, true);
+        if (!output)
+            throw errors::GitException("Object not found " + name, errors::ExitCode::OBJECT_NOT_FOUND);
+
+        std::cout
+            << *output
+            << "\n";
+
+        return errors::ExitCode::SUCCESS;
+    }
 } // namespace twig::commands
