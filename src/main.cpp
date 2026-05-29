@@ -89,6 +89,17 @@ int main(int argc, char **argv)
                          .default_value("HEAD")
                          .describe("The object the new tag will point to"));
 
+    auto &rev_parse = parser.add_subcommand("rev-parse", "Parse revision (or other objects) identifiers");
+
+    rev_parse.add_argument(
+        Argument("type")
+            .long_flag_name("type")
+            .as_option()
+            .describe("Specify the expected type"));
+
+    rev_parse.add_argument(Argument("name")
+                               .describe("The name to parse"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -131,6 +142,11 @@ int main(int argc, char **argv)
         if (subcmd == "tag")
         {
             twig::errors::ExitCode code = twig::commands::cmd_tag(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "rev-parse")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_rev_parse(result);
             return static_cast<int>(code);
         }
     }
