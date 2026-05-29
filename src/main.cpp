@@ -100,6 +100,13 @@ int main(int argc, char **argv)
     rev_parse.add_argument(Argument("name")
                                .describe("The name to parse"));
 
+    auto &ls_files = parser.add_subcommand("ls-files", "List files");
+    ls_files.add_argument(Argument("verbose")
+                              .as_flag()
+                              .long_flag_name("verbose")
+                              .default_value(false)
+                              .describe("Show everything"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -147,6 +154,11 @@ int main(int argc, char **argv)
         if (subcmd == "rev-parse")
         {
             twig::errors::ExitCode code = twig::commands::cmd_rev_parse(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "ls-files")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_ls_files(result);
             return static_cast<int>(code);
         }
     }
