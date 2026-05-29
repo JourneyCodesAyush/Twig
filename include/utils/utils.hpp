@@ -9,6 +9,8 @@ namespace twig::utils
     std::string compress(const std::string &content);
     std::string decompress(const std::string &content);
 
+    std::string strip(const std::string &s);
+
     std::string bytes_to_hex(const std::string &bytes);
     std::string hex_to_bytes(const std::string &hex);
     bool is_hex(const std::string &s);
