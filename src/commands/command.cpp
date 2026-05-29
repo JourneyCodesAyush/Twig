@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include "../include/commands/command.hpp"
+#include "../include/index/index.hpp"
 #include "../include/repository/objects.hpp"
 #include "../include/utils/utils.hpp"
 #include "../include/errors/error.hpp"
@@ -405,6 +406,87 @@ namespace twig::commands
         std::cout
             << *output
             << "\n";
+
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_ls_files(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        index::GitIndex index = index::index_read(*repo);
+
+        bool verbose = args.get<bool>("verbose");
+
+        if (verbose)
+            std::cout
+                << "Index file format "
+                << index.version
+                << ", containing "
+                << index.entries.size()
+                << " entries."
+                << "\n";
+
+        std::unordered_map<uint16_t, std::string> file_type;
+        file_type[0b1000] = "regular file";
+        file_type[0b1010] = "symlink";
+        file_type[0b1110] = "git link";
+
+        for (const auto &entry : index.entries)
+        {
+            std::cout << entry.name << "\n";
+            if (verbose)
+            {
+                const std::string &entry_type = file_type[entry.mode_type];
+                std::cout
+                    << "  "
+                    << entry_type
+                    << " with perms: "
+                    << std::oct
+                    << entry.mode_perms
+                    << std::dec
+                    << "\n";
+
+                std::cout
+                    << "  on blob: "
+                    << entry.sha
+                    << "\n";
+
+                std::cout
+                    << "  created: "
+                    << entry.ctime_second
+                    << "."
+                    << entry.ctime_nanosecond
+                    << ", modified: "
+                    << entry.mtime_second
+                    << "."
+                    << entry.mtime_nanosecond
+                    << "\n";
+
+                std::cout
+                    << "  device: "
+                    << entry.dev
+                    << ", inode: "
+                    << entry.ino
+                    << "\n";
+
+                std::cout
+                    << "  uid: "
+                    << entry.uid
+                    << ", gid: "
+                    << entry.gid
+                    << "\n";
+
+                std::cout
+                    << "  flags: stage="
+                    << static_cast<int>(entry.flag_stage)
+                    << " assume_valid="
+                    << entry.flag_assume_valid
+                    << "\n";
+            }
+        }
 
         return errors::ExitCode::SUCCESS;
     }
