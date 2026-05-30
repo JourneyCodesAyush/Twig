@@ -107,6 +107,12 @@ int main(int argc, char **argv)
                               .default_value(false)
                               .describe("Show everything"));
 
+    auto &check_ignore = parser.add_subcommand("check-ignore", "Check path(s) against ignore rules");
+    check_ignore.add_argument(Argument("path")
+                                  .make_required()
+                                  .make_variadic()
+                                  .describe("Paths to check"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -159,6 +165,11 @@ int main(int argc, char **argv)
         if (subcmd == "ls-files")
         {
             twig::errors::ExitCode code = twig::commands::cmd_ls_files(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "check-ignore")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_check_ignore(result);
             return static_cast<int>(code);
         }
     }
