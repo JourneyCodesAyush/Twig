@@ -114,4 +114,59 @@ namespace twig::ignore
         }
         return ret;
     }
+
+    std::optional<bool> check_ignore1(const RuleSet &rules, const std::string &path)
+    {
+        std::optional<bool> result = std::nullopt;
+        for (const auto &[pattern, value] : rules)
+        {
+            if (utils::fnmatch(path, pattern))
+                result = value;
+        }
+        return result;
+    }
+
+    std::optional<bool> check_ignore_scoped(const std::unordered_map<std::string, RuleSet> &rules, const std::string &path)
+    {
+        std::optional<bool> result = std::nullopt;
+        std::string parent = fs::path(path).parent_path().string();
+        while (1)
+        {
+            if (rules.count(parent) != 0)
+            {
+                result = check_ignore1(rules.at(parent), path);
+                if (result)
+                    return result;
+            }
+            std::string next = fs::path(parent).parent_path().string();
+            if (next == parent || next.empty())
+                break;
+            parent = next;
+        }
+        return std::nullopt;
+    }
+
+    bool check_ignore_absolute(const std::vector<RuleSet> &rules, const std::string &path)
+    {
+        for (const auto &ruleset : rules)
+        {
+            std::optional<bool> result = check_ignore1(ruleset, path);
+            if (result)
+                return *result;
+        }
+        return false;
+    }
+
+    bool check_ignore(const GitIgnore &rules, const std::string &path)
+    {
+        if (fs::path(path).is_absolute())
+            throw errors::GitException("This function requires path to be relative to the repository's root", errors::ExitCode::FAILURE);
+
+        std::optional<bool> result = check_ignore_scoped(rules.scoped, path);
+        if (result)
+            return *result;
+
+        return check_ignore_absolute(rules.absolute, path);
+    }
+
 } // namespace twig::ignore

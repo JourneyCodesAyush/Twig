@@ -25,4 +25,9 @@ namespace twig::ignore
 
     GitIgnore gitignore_read(const repository::GitRepository &repo);
 
+    std::optional<bool> check_ignore1(const RuleSet &rules, const std::string &path);
+    std::optional<bool> check_ignore_scoped(const std::unordered_map<std::string, RuleSet> &rules, const std::string &path);
+    bool check_ignore_absolute(const std::vector<RuleSet> &rules, const std::string &path);
+    bool check_ignore(const GitIgnore &rules, const std::string &path);
+
 } // namespace twig::ignore
