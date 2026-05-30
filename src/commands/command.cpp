@@ -5,6 +5,7 @@
 #include "../include/commands/command.hpp"
 #include "../include/index/index.hpp"
 #include "../include/repository/objects.hpp"
+#include "../include/ignore/ignore.hpp"
 #include "../include/utils/utils.hpp"
 #include "../include/errors/error.hpp"
 
@@ -486,6 +487,24 @@ namespace twig::commands
                     << entry.flag_assume_valid
                     << "\n";
             }
+        }
+
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_check_ignore(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        ignore::GitIgnore rules = ignore::gitignore_read(*repo);
+
+        std::vector<std::string> paths = args.get<std::vector<std::string>>("path");
+        for (const auto &path : paths)
+        {
+            if (ignore::check_ignore(rules, fs::path(path).lexically_normal().string()))
+                std::cout << path << "\n";
         }
 
         return errors::ExitCode::SUCCESS;
