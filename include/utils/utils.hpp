@@ -10,6 +10,7 @@ namespace twig::utils
     std::string decompress(const std::string &content);
 
     std::string strip(const std::string &s);
+    bool fnmatch(std::string path, std::string pattern);
 
     std::string bytes_to_hex(const std::string &bytes);
     std::string hex_to_bytes(const std::string &hex);
