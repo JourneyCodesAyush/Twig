@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX = g++
-CXXFLAGS = -Wall -std=c++17
+CXXFLAGS = -Wall -std=c++20
 DEBUG_FLAGS = -g
 RELEASE_FLAGS = -O3
 
