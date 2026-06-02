@@ -195,7 +195,7 @@ namespace twig::repository
                 std::string remaining = new_name.substr(2);
                 for (const auto &entry : fs::directory_iterator(*path))
                 {
-                    if (entry.path().filename().string().rfind(remaining, 0) == 0)
+                    if (entry.path().filename().string().starts_with(remaining))
                         candidates.push_back(prefix + entry.path().filename().string());
                 }
             }
@@ -235,7 +235,7 @@ namespace twig::repository
 
         std::string sha = sha_s[0];
 
-        if (format == "")
+        if (format.empty())
             return sha;
 
         while (1)
@@ -334,7 +334,7 @@ namespace twig::repository
         if (data.size() > 0 && data.back() == '\n')
             data.pop_back();
 
-        if (data.rfind("ref: ", 0) == 0)
+        if (data.starts_with("ref: "))
             return ref_resolve(repo, (fs::path(repo.gitdir) / data.substr(5)).string());
         else
             return data;

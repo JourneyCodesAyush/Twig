@@ -36,7 +36,7 @@ namespace twig::index
 
         std::string raw = utils::read_file_binary(*index_file);
 
-        if (raw.substr(0, 4) != "DIRC")
+        if (!raw.starts_with("DIRC"))
             throw errors::GitException("Index error", errors::ExitCode::INDEX_ERROR);
 
         std::uint32_t version = read_u32(raw, 4);

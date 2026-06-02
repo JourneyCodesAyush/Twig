@@ -89,8 +89,7 @@ namespace twig::ignore
         index::GitIndex index = index::index_read(repo);
         for (const auto &entry : index.entries)
         {
-            if (entry.name == ".gitignore" ||
-                (entry.name.size() >= 10 && entry.name.rfind("/.gitignore") == entry.name.size() - 11))
+            if (entry.name == ".gitignore" || entry.name.ends_with("/.gitignore"))
             {
                 std::string dir_name = fs::path(entry.name).parent_path().string();
                 std::unique_ptr<twig::objects::GitObject> obj = repository::object_read(repo, entry.sha);
