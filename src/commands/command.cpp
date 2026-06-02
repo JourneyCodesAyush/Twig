@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <memory>
 #include <unordered_set>
 #include <filesystem>
@@ -213,6 +214,145 @@ namespace twig::commands
             else
             {
                 ref_create(repo, "tags/" + name, sha);
+            }
+        }
+
+        std::optional<std::string> branch_get_active(const repository::GitRepository &repo)
+        {
+            std::string head = utils::read_file((fs::path(repo.gitdir) / "HEAD").string());
+            if (head.starts_with("ref: refs/heads/"))
+                return utils::strip(head.substr(16));
+            else
+                return std::nullopt;
+        }
+
+        void cmd_status_branch(const repository::GitRepository &repo)
+        {
+            std::optional<std::string> branch = branch_get_active(repo);
+            if (branch)
+                std::cout << "On branch: " << *branch << "\n";
+            else
+            {
+                std::optional<std::string> sha = repository::object_find(repo, "HEAD");
+                std::cout << "HEAD detached at: " << *sha << "\n";
+            }
+        }
+
+        std::unordered_map<std::string, std::string> tree_to_map(
+            const repository::GitRepository &repo,
+            const std::string &ref,
+            const std::string &prefix = "")
+        {
+            std::unordered_map<std::string, std::string> map;
+
+            std::optional<std::string> tree_sha = repository::object_find(repo, ref, "tree");
+
+            if (!tree_sha)
+                throw errors::GitException("Could not resolve tree: " + ref, errors::ExitCode::OBJECT_NOT_FOUND);
+
+            std::unique_ptr<twig::objects::GitObject> object = repository::object_read(repo, *tree_sha);
+
+            objects::GitTree *tree = dynamic_cast<objects::GitTree *>(object.get());
+
+            if (!tree)
+                throw errors::GitException("Not a tree object", errors::ExitCode::MALFORMED_OBJECT);
+
+            for (const auto &leaf : tree->leaves)
+            {
+                std::string full_path = (fs::path(prefix) / leaf.path).string();
+
+                bool is_subtree = leaf.mode.starts_with("04");
+
+                if (is_subtree)
+                {
+                    auto sub = tree_to_map(repo, leaf.sha, full_path);
+                    map.merge(sub);
+                }
+                else
+                {
+                    map[full_path] = leaf.sha;
+                }
+            }
+
+            return map;
+        }
+
+        void cmd_status_head_index(const repository::GitRepository &repo, const index::GitIndex &index)
+        {
+            std::cout << "Changes to be committed:\n";
+
+            std::unordered_map<std::string, std::string> head = tree_to_map(repo, "HEAD");
+
+            for (const auto &entry : index.entries)
+            {
+                if (head.count(entry.name) != 0)
+                {
+                    if (head[entry.name] != entry.sha)
+                        std::cout << "  modified: " << entry.name << "\n";
+                    head.erase(entry.name);
+                }
+                else
+                {
+                    std::cout << "  added: " << entry.name << "\n";
+                }
+            }
+
+            for (const auto &[path, sha] : head)
+                std::cout << "  deleted: " << path << "\n";
+        }
+
+        void cmd_status_index_worktree(const repository::GitRepository &repo, const index::GitIndex &index)
+        {
+            std::cout << "Changes not staged for commit:\n";
+
+            std::unordered_set<std::string> all_files;
+
+            ignore::GitIgnore ignore = ignore::gitignore_read(repo);
+
+            std::string gitdir_prefix = repo.gitdir + fs::path::preferred_separator;
+
+            for (const auto &entry : fs::recursive_directory_iterator(repo.worktree))
+            {
+                if (!fs::is_regular_file(entry))
+                    continue;
+
+                std::string path = entry.path().string();
+                if (path == repo.gitdir || path.starts_with(gitdir_prefix))
+                    continue;
+
+                std::string rel = fs::relative(entry.path(), repo.worktree).string();
+                all_files.insert(rel);
+            }
+
+            for (const auto &entry : index.entries)
+            {
+                std::string full_path = (fs::path(repo.worktree) / entry.name).string();
+
+                if (!fs::exists(full_path))
+                {
+                    std::cout << "  deleted: " << entry.name << "\n";
+                }
+                else
+                {
+                    std::string content = utils::read_file_binary(full_path);
+
+                    std::unique_ptr<objects::GitObject> obj = std::make_unique<objects::GitBlob>(content);
+
+                    std::string sha = repository::object_write(obj.get(), nullptr);
+
+                    if (entry.sha != sha)
+                        std::cout << "  modified: " << entry.name << "\n";
+                }
+
+                all_files.erase(entry.name);
+            }
+
+            std::cout << "\n"
+                      << "Untracked files:\n";
+            for (const auto &file : all_files)
+            {
+                if (!ignore::check_ignore(ignore, file))
+                    std::cout << "  " << file << "\n";
             }
         }
     } // namespace
@@ -507,6 +647,20 @@ namespace twig::commands
                 std::cout << path << "\n";
         }
 
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_status()
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        index::GitIndex index = index::index_read(*repo);
+
+        cmd_status_branch(*repo);
+        cmd_status_head_index(*repo, index);
+        cmd_status_index_worktree(*repo, index);
         return errors::ExitCode::SUCCESS;
     }
 } // namespace twig::commands
