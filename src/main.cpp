@@ -113,6 +113,8 @@ int main(int argc, char **argv)
                                   .make_variadic()
                                   .describe("Paths to check"));
 
+    auto &status = parser.add_subcommand("status", "Show the working tree status");
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -170,6 +172,11 @@ int main(int argc, char **argv)
         if (subcmd == "check-ignore")
         {
             twig::errors::ExitCode code = twig::commands::cmd_check_ignore(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "status")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_status();
             return static_cast<int>(code);
         }
     }
