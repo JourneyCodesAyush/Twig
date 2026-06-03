@@ -68,4 +68,5 @@ namespace twig::index
     };
 
     GitIndex index_read(const repository::GitRepository &repo);
+    void index_write(const repository::GitRepository &repo, const GitIndex &index);
 } // namespace twig::index
