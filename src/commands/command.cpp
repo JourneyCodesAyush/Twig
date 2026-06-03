@@ -1,7 +1,10 @@
 #include <algorithm>
+#include <fstream>
 #include <memory>
 #include <unordered_set>
 #include <filesystem>
+
+#include <sys/stat.h>
 
 #include "../include/commands/command.hpp"
 #include "../include/index/index.hpp"
@@ -402,6 +405,57 @@ namespace twig::commands
             index.entries = kept_entries;
             index::index_write(repo, index);
         }
+
+        void add(const repository::GitRepository &repo, const std::vector<std::string> &paths, bool delete_entry = true, bool skip_missing = false)
+        {
+            rm(repo, paths, false, true);
+            std::string worktree = fs::canonical(repo.worktree).string() + fs::path::preferred_separator;
+
+            // (absolute, relative_to_worktree)
+            std::vector<std::pair<std::string, std::string>> clean_paths;
+
+            for (const auto &path : paths)
+            {
+                std::string abspath = fs::canonical(fs::absolute(path).parent_path()) / fs::absolute(path).filename();
+
+                if (!abspath.starts_with(worktree) || !fs::is_regular_file(abspath))
+                    throw errors::GitException("Not a file, or outside the worktree", errors::ExitCode::FAILURE);
+                std::string relpath = fs::relative(abspath, repo.worktree);
+
+                clean_paths.emplace_back(abspath, relpath);
+            }
+
+            index::GitIndex index = index::index_read(repo);
+
+            for (const auto &[abspath, relpath] : clean_paths)
+            {
+                std::string content = utils::read_file_binary(abspath);
+
+                std::unique_ptr<objects::GitObject> obj = std::make_unique<objects::GitBlob>(content);
+
+                std::string sha = repository::object_write(obj.get(), &repo);
+
+                struct stat file_stats;
+                stat(abspath.c_str(), &file_stats);
+
+                std::uint32_t ctime_second = file_stats.st_ctim.tv_sec;
+                std::uint32_t ctime_nanosecond = file_stats.st_ctim.tv_nsec;
+                std::uint32_t mtime_second = file_stats.st_mtim.tv_sec;
+                std::uint32_t mtime_nanosecond = file_stats.st_mtim.tv_nsec;
+
+                std::uint32_t dev = file_stats.st_dev;
+                std::uint32_t ino = file_stats.st_ino;
+                std::uint32_t uid = file_stats.st_uid;
+                std::uint32_t gid = file_stats.st_gid;
+                std::uint32_t fsize = file_stats.st_size;
+
+                index::GitIndexEntry entry(ctime_second, ctime_nanosecond, mtime_second, mtime_nanosecond, dev, ino, uid, gid, fsize, 0b1000, 0644, false, 0, sha, relpath);
+
+                index.entries.push_back(entry);
+            }
+
+            index::index_write(repo, index);
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -719,6 +773,18 @@ namespace twig::commands
 
         std::vector<std::string> paths = args.get<std::vector<std::string>>("path");
         rm(*repo, paths);
+
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_add(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        std::vector<std::string> paths = args.get<std::vector<std::string>>("path");
+        add(*repo, paths);
 
         return errors::ExitCode::SUCCESS;
     }
