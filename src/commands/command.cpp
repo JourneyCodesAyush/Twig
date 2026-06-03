@@ -355,6 +355,53 @@ namespace twig::commands
                     std::cout << "  " << file << "\n";
             }
         }
+
+        void rm(const repository::GitRepository &repo, const std::vector<std::string> &paths, bool delete_entry = true, bool skip_missing = false)
+        {
+            index::GitIndex index = index::index_read(repo);
+
+            std::string worktree = fs::canonical(repo.worktree).string() + fs::path::preferred_separator;
+
+            std::unordered_set<std::string> abspaths;
+            for (const auto &path : paths)
+            {
+                std::string abspath = (fs::absolute(path)).string();
+                // std::cout << "abspath: " << abspath << "\n";
+                // std::cout << "worktree: " << worktree << "\n";
+                if (abspath.starts_with(worktree))
+                    abspaths.insert(abspath);
+                else
+                    throw errors::GitException("Cannot remove paths outside of worktree", errors::ExitCode::FAILURE);
+            }
+
+            std::vector<index::GitIndexEntry> kept_entries;
+            std::vector<std::string> remove_entries;
+
+            for (const auto &entry : index.entries)
+            {
+                std::string full_path = (fs::canonical(fs::path(repo.worktree) / entry.name)).string();
+
+                if (abspaths.contains(full_path))
+                {
+                    remove_entries.push_back(full_path);
+                    abspaths.erase(full_path);
+                }
+                else
+                    kept_entries.push_back(entry);
+            }
+
+            if (abspaths.size() > 0 && !skip_missing)
+                throw errors::GitException("Cannot remove paths not in the index", errors::ExitCode::FAILURE);
+
+            if (delete_entry)
+            {
+                for (const auto &path : remove_entries)
+                    fs::remove(path);
+            }
+
+            index.entries = kept_entries;
+            index::index_write(repo, index);
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -661,6 +708,18 @@ namespace twig::commands
         cmd_status_branch(*repo);
         cmd_status_head_index(*repo, index);
         cmd_status_index_worktree(*repo, index);
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_rm(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        std::vector<std::string> paths = args.get<std::vector<std::string>>("path");
+        rm(*repo, paths);
+
         return errors::ExitCode::SUCCESS;
     }
 } // namespace twig::commands
