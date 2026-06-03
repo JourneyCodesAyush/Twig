@@ -115,6 +115,13 @@ int main(int argc, char **argv)
 
     auto &status = parser.add_subcommand("status", "Show the working tree status");
 
+    auto &rm = parser.add_subcommand("rm", "Remove files from the working tree and the index");
+
+    rm.add_argument(Argument("path")
+                        .make_required()
+                        .make_variadic()
+                        .describe("Files to remove"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -177,6 +184,11 @@ int main(int argc, char **argv)
         if (subcmd == "status")
         {
             twig::errors::ExitCode code = twig::commands::cmd_status();
+            return static_cast<int>(code);
+        }
+        if (subcmd == "rm")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_rm(result);
             return static_cast<int>(code);
         }
     }
