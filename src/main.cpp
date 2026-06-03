@@ -121,6 +121,12 @@ int main(int argc, char **argv)
                         .make_required()
                         .make_variadic()
                         .describe("Files to remove"));
+    auto &add = parser.add_subcommand("add", "Add files contents to the index");
+
+    add.add_argument(Argument("path")
+                         .make_required()
+                         .make_variadic()
+                         .describe("Add files contents to the index"));
 
     try
     {
@@ -189,6 +195,11 @@ int main(int argc, char **argv)
         if (subcmd == "rm")
         {
             twig::errors::ExitCode code = twig::commands::cmd_rm(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "add")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_add(result);
             return static_cast<int>(code);
         }
     }
