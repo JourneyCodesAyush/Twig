@@ -128,6 +128,13 @@ int main(int argc, char **argv)
                          .make_variadic()
                          .describe("Add files contents to the index"));
 
+    auto &commit = parser.add_subcommand("commit", "Record changes to the repository");
+
+    commit.add_argument(Argument("m")
+                            .short_flag_char('m')
+                            .make_required()
+                            .describe("Message to associate with this commit"));
+
     try
     {
         auto [subcmd, result] = parser.parse(argc, argv);
@@ -200,6 +207,11 @@ int main(int argc, char **argv)
         if (subcmd == "add")
         {
             twig::errors::ExitCode code = twig::commands::cmd_add(result);
+            return static_cast<int>(code);
+        }
+        if (subcmd == "commit")
+        {
+            twig::errors::ExitCode code = twig::commands::cmd_commit(result);
             return static_cast<int>(code);
         }
     }
