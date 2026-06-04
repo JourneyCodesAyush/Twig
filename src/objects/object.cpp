@@ -127,10 +127,10 @@ namespace twig::objects
                   {
                     std::string path1 = leaf1.path;
                     std::string path2 = leaf2.path;
-            if(leaf1.mode.length() > 1 && leaf1.mode[0] == '4'){
+            if(leaf1.mode.starts_with("04")){
                 path1 += "/";
             }
-            if(leaf2.mode.length() > 1 && leaf2.mode[0] == '4'){
+            if(leaf2.mode.starts_with("04")){
                 path2 += "/";
             }
         return path1 < path2; });
