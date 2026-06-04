@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <ctime>
+#include <format>
 #include <fstream>
 #include <memory>
 #include <unordered_set>
@@ -456,6 +458,155 @@ namespace twig::commands
 
             index::index_write(repo, index);
         }
+
+        std::string tree_from_index(const repository::GitRepository &repo, const index::GitIndex &index)
+        {
+            using value = std::variant<index::GitIndexEntry, std::pair<std::string, std::string>>;
+
+            std::unordered_map<std::string, std::vector<value>> contents;
+            contents[""] = {};
+
+            for (const auto &entry : index.entries)
+            {
+                std::string dirname = fs::path(entry.name).parent_path().string();
+                std::string key = dirname;
+                while (key != "")
+                {
+                    if (!contents.contains(key))
+                    {
+                        contents[key] = {};
+                    }
+                    key = fs::path(key).parent_path().string();
+                }
+                contents[dirname].push_back(entry);
+            }
+
+            std::vector<std::string> sorted_paths;
+            sorted_paths.reserve(contents.size());
+            for (const auto &[path, _] : contents)
+                sorted_paths.push_back(path);
+            std::sort(sorted_paths.begin(), sorted_paths.end(), [&](const std::string &a, const std::string &b)
+                      { return a.size() > b.size(); });
+
+            std::string sha;
+
+            for (const auto &path : sorted_paths)
+            {
+                objects::GitTree tree;
+
+                for (const auto &entry : contents[path])
+                {
+                    if (std::holds_alternative<index::GitIndexEntry>(entry))
+                    {
+                        auto &index_entry = std::get<index::GitIndexEntry>(entry);
+                        std::string leaf_mode = std::format("{:02o}{:04o}", index_entry.mode_type, index_entry.mode_perms);
+                        objects::GitTreeLeaf leaf(leaf_mode,
+                                                  fs::path(index_entry.name).filename(),
+                                                  index_entry.sha);
+
+                        tree.leaves.push_back(leaf);
+                    }
+                    else
+                    {
+                        auto &pair = std::get<std::pair<std::string, std::string>>(entry);
+                        objects::GitTreeLeaf leaf("040000", pair.first, pair.second);
+                        tree.leaves.push_back(leaf);
+                    }
+                }
+                sha = repository::object_write(&tree, &repo);
+                std::string parent = fs::path(path).parent_path().string();
+                std::string base = fs::path(path).filename().string();
+                contents[parent].push_back(std::make_pair(base, sha));
+            }
+
+            return sha;
+        }
+
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> gitconfig_read()
+        {
+            std::unordered_map<std::string, std::unordered_map<std::string, std::string>> config;
+
+            std::vector<std::string> candidates;
+            const char *xdg = std::getenv("XDG_CONFIG_HOME");
+            if (xdg)
+                candidates.push_back(std::string(xdg) + "/git/config");
+            else
+            {
+                const char *home = std::getenv("HOME");
+                if (home)
+                    candidates.push_back(std::string(home) + "/.config/git/config");
+            }
+            const char *home = std::getenv("HOME");
+            if (home)
+                candidates.push_back(std::string(home) + "/.gitconfig");
+
+            for (const auto &path : candidates)
+            {
+                std::ifstream file(path);
+                if (!file.is_open())
+                    continue;
+
+                std::string section;
+                std::string line;
+                while (std::getline(file, line))
+                {
+                    line = utils::strip(line);
+                    if (line.empty() || line[0] == '#' || line[0] == ';')
+                        continue;
+                    if (line[0] == '[')
+                    {
+                        section = line.substr(1, line.find(']') - 1);
+                        section = utils::strip(section);
+                    }
+                    else
+                    {
+                        auto eq = line.find('=');
+                        if (eq == std::string::npos)
+                            continue;
+                        std::string key = utils::strip(line.substr(0, eq));
+                        std::string val = utils::strip(line.substr(eq + 1));
+                        config[section][key] = val;
+                    }
+                }
+            }
+
+            return config;
+        }
+
+        std::string gitconfig_user_get(const std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &config)
+        {
+            auto section = config.find("user");
+            if (section == config.end())
+                throw errors::GitException("No [user] section in git config", errors::ExitCode::FAILURE);
+            auto &user = section->second;
+            if (!user.contains("name") || !user.contains("email"))
+                throw errors::GitException("Missing name or email in git config [user]", errors::ExitCode::FAILURE);
+            return user.at("name") + " <" + user.at("email") + ">";
+        }
+
+        std::string commit_create(const repository::GitRepository &repo,
+                                  const std::string &tree_sha,
+                                  const std::string &parent,
+                                  const std::string &author,
+                                  const std::string &message)
+        {
+            objects::GitCommit commit;
+            commit.kvlm.emplace_back("tree", tree_sha);
+            if (!parent.empty())
+                commit.kvlm.emplace_back("parent", parent);
+
+            std::time_t now = std::time(nullptr);
+            std::tm *local = std::localtime(&now);
+            char tz[6];
+            std::strftime(tz, sizeof(tz), "%z", local);
+            std::string author_line = author + " " + std::to_string(now) + " " + tz;
+
+            commit.kvlm.emplace_back("author", author_line);
+            commit.kvlm.emplace_back("committer", author_line);
+            commit.kvlm.emplace_back("None", utils::strip(message) + "\n");
+
+            return repository::object_write(&commit, &repo);
+        }
     } // namespace
 
     errors::ExitCode cmd_init(const ParseResult &args)
@@ -786,6 +937,37 @@ namespace twig::commands
         std::vector<std::string> paths = args.get<std::vector<std::string>>("path");
         add(*repo, paths);
 
+        return errors::ExitCode::SUCCESS;
+    }
+
+    errors::ExitCode cmd_commit(const ParseResult &args)
+    {
+        std::optional<repository::GitRepository> repo = repository::repo_find();
+        if (!repo)
+            throw errors::GitException("Not a repository", errors::ExitCode::NOT_A_REPO);
+
+        index::GitIndex index = index::index_read(*repo);
+
+        std::string message = args.get<std::string>("m");
+
+        std::string tree = tree_from_index(*repo, index);
+
+        std::optional<std::string> head = repository::object_find(*repo, "HEAD");
+
+        std::string commit = commit_create(*repo, tree, head ? *head : "", gitconfig_user_get(gitconfig_read()), message);
+
+        std::string head_path = (fs::path((*repo).gitdir) / "HEAD").string();
+
+        std::string head_content = utils::strip(utils::read_file(head_path));
+        if (head_content.starts_with("ref: "))
+        {
+            std::string branch_ref = head_content.substr(5); // refs/heads/master
+            ref_create(*repo, branch_ref.substr(5), commit); // heads/master
+        }
+        else
+        {
+            utils::write_file(head_path, commit + "\n");
+        }
         return errors::ExitCode::SUCCESS;
     }
 } // namespace twig::commands

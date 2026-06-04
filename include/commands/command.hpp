@@ -19,4 +19,5 @@ namespace twig::commands
     errors::ExitCode cmd_status();
     errors::ExitCode cmd_rm(const ParseResult &args);
     errors::ExitCode cmd_add(const ParseResult &args);
+    errors::ExitCode cmd_commit(const ParseResult &args);
 } // namespace twig::commands
