@@ -44,6 +44,7 @@ namespace twig::objects
     public:
         std::vector<std::pair<std::string, std::string>> kvlm;
 
+        GitCommit() : GitObject("commit") {}
         GitCommit(const std::string &data) : GitObject("commit") { this->kvlm = kvlm_parse(data); }
 
         std::string serialize() const override { return kvlm_serialize(this->kvlm); }
@@ -71,6 +72,7 @@ namespace twig::objects
     public:
         std::vector<GitTreeLeaf> leaves;
 
+        GitTree() : GitObject("tree") {}
         GitTree(const std ::string &data) : GitObject("tree") { this->leaves = tree_parse(data); }
 
         std::string serialize() const override
