@@ -6,7 +6,6 @@
 
 A minimal Git implementation in C++, built from scratch. Twig can initialize repositories, hash and compress objects, build an index, resolve references, and commit — enough to be self-hosting.
 
-
 ---
 
 ## Commands
@@ -101,7 +100,7 @@ twig/
 | ------------------------------------- | ---------------------------------------- |
 | OpenSSL (`libssl-dev`)                | SHA-1 hashing for object IDs             |
 | zlib (`zlib1g-dev`)                   | deflate compression for object storage   |
-| `<fnmatch.h>`                         | Pattern matching for `.gitignore`      |
+| `<fnmatch.h>`                         | Pattern matching for `.gitignore`        |
 | `<sys/stat.h>`, `st_ctim` / `st_mtim` | File metadata for index freshness checks |
 
 The last two are POSIX APIs available on Linux and WSL. **Twig does not support macOS or Windows natively.**
@@ -113,3 +112,36 @@ The last two are POSIX APIs available on Linux and WSL. **Twig does not support 
 - `add` accepts individual files only — directory expansion is not implemented.
 - `add` does not check ignore rules.
 - Linux and WSL only.
+- Directory patterns in `.gitignore` (e.g. `makeBuild/`, `.vscode/`) are not matched correctly — files inside ignored directories are still shown as untracked by `status` and `check-ignore`.
+
+---
+
+## Contributing
+
+Contributions are welcome. Please follow these guidelines:
+
+- Fork the repository and create a branch: `feat/feature-name` or `fix/bug-name`
+- Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages
+- Open a pull request with a clear description of your changes
+
+### Commit Scopes
+
+| Scope        | Description                                   |
+| ------------ | --------------------------------------------- |
+| `cli`        | Entry point and argument parsing (`main.cpp`) |
+| `commands`   | Command implementations                       |
+| `object`     | Changes to blob, commit, tree, or tag         |
+| `index`      | Index read/write logic                        |
+| `ignore`     | Ignore rule parsing and matching              |
+| `repository` | Repository and object store                   |
+| `utils`      | Hashing, compression, IO, fnmatch             |
+| `argparse`   | Argument parser header                        |
+| `error`      | Error codes and exception wrapper             |
+| `docs`       | Documentation changes                         |
+| `build`      | Makefile changes                              |
+
+---
+
+## License
+
+MIT - See [LICENSE](LICENSE)
