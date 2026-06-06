@@ -6,6 +6,8 @@ namespace twig::utils
 {
     namespace
     {
+        // Compress data using zlib at Z_BEST_COMPRESSION level.
+        // Output buffer is sized via compressBound and trimmed to actual output size.
         std::string do_compress(const std::string &data)
         {
             uLongf bound = compressBound(data.size());
@@ -25,6 +27,8 @@ namespace twig::utils
             return out;
         }
 
+        // Decompress zlib data using a grow-on-retry strategy.
+        // Starts at 4x input size and doubles the buffer on Z_BUF_ERROR until it fits.
         std::string do_decompress(const std::string &data)
         {
             std::string out(data.size() * 4, '\0');

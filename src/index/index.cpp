@@ -10,6 +10,7 @@ namespace twig::index
 {
     namespace
     {
+        // Read a big-endian uint32 from a string buffer at the given offset.
         uint32_t read_u32(const std::string &data, size_t offset)
         {
             return (static_cast<uint32_t>((unsigned char)data[offset]) << 24) |
@@ -18,12 +19,14 @@ namespace twig::index
                    (static_cast<uint32_t>((unsigned char)data[offset + 3]));
         }
 
+        // Read a big-endian uint16 from a string buffer at the given offset.
         uint16_t read_u16(const std::string &data, size_t offset)
         {
             return (static_cast<uint16_t>((unsigned char)data[offset]) << 8) |
                    (static_cast<uint16_t>((unsigned char)data[offset + 1]));
         }
 
+        // Write a big-endian uint32 to a binary output stream.
         void write_u32(std::ofstream &f, uint32_t val)
         {
             f.put((val >> 24) & 0xFF);
@@ -32,6 +35,7 @@ namespace twig::index
             f.put(val & 0xFF);
         }
 
+        // Write a big-endian uint16 to a binary output stream.
         void write_u16(std::ofstream &f, uint16_t val)
         {
             f.put((val >> 8) & 0xFF);

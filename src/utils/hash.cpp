@@ -10,6 +10,9 @@ namespace twig::utils
 {
     namespace
     {
+        // Compute SHA-1 via OpenSSL's EVP digest API.
+        // EVP is preferred over the deprecated SHA1() direct call.
+        // Returns a 40-character lowercase hex string.
         std::string getSHA1_EVP(const std::string &data)
         {
             EVP_MD_CTX *mdctx = EVP_MD_CTX_new();

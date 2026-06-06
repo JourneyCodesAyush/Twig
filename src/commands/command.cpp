@@ -31,6 +31,9 @@ namespace twig::commands
             std::cout << object->serialize() << "\n";
         }
 
+        // Print a commit and its ancestors as a Graphviz digraph node + edges.
+        // Escapes backslashes and quotes in the message; truncates at first newline.
+        // Skips already-visited SHAs via the seen set to handle merges/cycles.
         void log_graphviz(repository::GitRepository &repo, const std::string &sha, std::unordered_set<std::string> &seen)
         {
             if (seen.find(sha) != seen.end())
@@ -110,6 +113,8 @@ namespace twig::commands
             }
         }
 
+        // Recursively walk a tree object, printing each entry.
+        // In recursive mode, subtrees are descended into rather than printed.
         void ls_tree(repository::GitRepository &repo, const std::string &sha, bool recursive, const std::string &prefix = "")
         {
             std::unique_ptr<objects::GitObject> obj = repository::object_read(repo, sha);
@@ -151,6 +156,7 @@ namespace twig::commands
             }
         }
 
+        // Recursively write a tree's blobs to disk, creating subdirectories as needed.
         void tree_checkout(const repository::GitRepository &repo, const objects::GitTree &object, const std::string &path)
         {
             for (const auto &leaf : object.leaves)
@@ -243,6 +249,7 @@ namespace twig::commands
             }
         }
 
+        // Flatten a commit or tree ref into a path→sha map, recursing into subtrees.
         std::unordered_map<std::string, std::string> tree_to_map(
             const repository::GitRepository &repo,
             const std::string &ref,
@@ -459,6 +466,9 @@ namespace twig::commands
             index::index_write(repo, index);
         }
 
+        // Build a tree object hierarchy from the index and return the root tree SHA.
+        // Groups index entries by directory, processes deepest paths first, then
+        // bubbles each written tree SHA up as an entry in its parent directory.
         std::string tree_from_index(const repository::GitRepository &repo, const index::GitIndex &index)
         {
             using value = std::variant<index::GitIndexEntry, std::pair<std::string, std::string>>;
@@ -522,6 +532,8 @@ namespace twig::commands
             return sha;
         }
 
+        // Read ~/.gitconfig and XDG_CONFIG_HOME/git/config into a nested section→key→value map.
+        // Tries XDG path first, then falls back to ~/.gitconfig.
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> gitconfig_read()
         {
             std::unordered_map<std::string, std::unordered_map<std::string, std::string>> config;
@@ -573,6 +585,7 @@ namespace twig::commands
             return config;
         }
 
+        // Extract "Name <email>" from the parsed git config [user] section.
         std::string gitconfig_user_get(const std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &config)
         {
             auto section = config.find("user");
@@ -584,6 +597,8 @@ namespace twig::commands
             return user.at("name") + " <" + user.at("email") + ">";
         }
 
+        // Write a commit object from parts and return its SHA.
+        // Timestamps and timezone are taken from the local system clock.
         std::string commit_create(const repository::GitRepository &repo,
                                   const std::string &tree_sha,
                                   const std::string &parent,
