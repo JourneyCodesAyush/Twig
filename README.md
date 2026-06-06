@@ -6,6 +6,8 @@
 
 A minimal Git implementation in C++, built from scratch. Twig can initialize repositories, hash and compress objects, build an index, resolve references, and commit — enough to be self-hosting.
 
+![Help-Message](assets/help-message.png)
+
 ---
 
 ## Commands
