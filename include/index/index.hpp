@@ -1,3 +1,16 @@
+/**
+ * @file index.hpp
+ * @brief Git staging area (index) representation and persistence.
+ *
+ * The Git index is the staging area between the working directory and
+ * the commit history (HEAD). It stores a snapshot of what will be written
+ * to the next commit, mapping file paths to blob objects along with
+ * filesystem metadata used to efficiently detect changes.
+ *
+ * The index avoids expensive full file hashing by comparing stored
+ * metadata (mtime, size, inode, etc.) against the working directory.
+ */
+
 #pragma once
 
 #include <cstdint>
@@ -8,6 +21,15 @@
 
 namespace twig::index
 {
+    /**
+     * @brief A single entry in the Git index.
+     *
+     * Each entry represents a tracked file and stores both:
+     * - the object ID (SHA-1) of its content
+     * - filesystem metadata for change detection
+     *
+     * This structure closely mirrors Git's internal index format.
+     */
     struct GitIndexEntry
     {
         // Last time a file's metadata changed (seconds since epoch + nanoseconds)
@@ -59,6 +81,12 @@ namespace twig::index
               sha(std::move(sha)), name(std::move(name)) {}
     };
 
+    /**
+     * @brief In-memory representation of the Git index (staging area).
+     *
+     * The index stores a list of tracked files and their associated metadata.
+     * Version refers to the Git index format version (typically 2 in modern Git).
+     */
     struct GitIndex
     {
         std::uint32_t version;
@@ -67,6 +95,19 @@ namespace twig::index
         GitIndex(const std::uint32_t version = 2, const std::vector<GitIndexEntry> entries = {}) : version(version), entries(std::move(entries)) {}
     };
 
+    /**
+     * @brief Read and parse the .git/index file.
+     *
+     * Loads the staging area from disk into memory.
+     * May perform validation depending on implementation.
+     */
     GitIndex index_read(const repository::GitRepository &repo);
+
+    /**
+     * @brief Write the in-memory index back to .git/index.
+     *
+     * Serializes the staging area to disk. Typically overwrites the existing
+     * index file atomically.
+     */
     void index_write(const repository::GitRepository &repo, const GitIndex &index);
 } // namespace twig::index

@@ -1,3 +1,8 @@
+/**
+ * @file argparse.hpp
+ * @brief Lightweight argument parser supporting subcommands, flags, options, and positional args.
+ */
+
 #pragma once
 
 #include <string>
@@ -8,6 +13,7 @@
 #include <stdexcept>
 #include <iostream>
 
+/** @brief Thrown when argument parsing fails due to unknown flags, missing values, or wrong types. */
 struct ParseError : std::runtime_error
 {
     explicit ParseError(const std::string &message) : std::runtime_error(message) {}
@@ -17,19 +23,20 @@ using ArgValue = std::variant<std::string, bool, std::vector<std::string>>;
 
 enum class ArgKind
 {
-    POSITIONAL,
-    FLAG,
-    OPTION
+    POSITIONAL, ///< Bare value matched by position (e.g. <path>).
+    FLAG,       ///< Boolean switch; present = true (e.g. --verbose).
+    OPTION,     ///< Named argument that takes a value (e.g. --message <msg>).
 };
 
+/** @brief Descriptor for a single argument. Build one with the fluent setters, then pass to SubCommand::add_argument(). */
 struct Argument
 {
-    std::string name;
-    char short_flag;
-    std::string long_flag;
+    std::string name;      ///< Canonical name; used as the key in ParseResult.
+    char short_flag;       ///< Single-character flag, e.g. 'm'. '\0' if unused.
+    std::string long_flag; ///< Long flag name without '--', e.g. "message". Empty if unused.
     ArgKind kind;
     bool required;
-    bool variadic;
+    bool variadic; ///< If true, consumes all remaining positional tokens into a vector.
     std::optional<ArgValue> default_val;
     std::string description;
 
@@ -96,6 +103,13 @@ struct ParseResult
 {
     std::unordered_map<std::string, ArgValue> values;
 
+    /**
+     * @brief Retrieves a parsed value by name.
+     *
+     * @tparam T Expected type: std::string, bool, or std::vector<std::string>.
+     * @param name The argument's canonical name.
+     * @throws ParseError if the name is absent or T doesn't match the stored type.
+     */
     template <typename T>
     T get(const std::string &name) const
     {
@@ -120,6 +134,7 @@ struct ParseResult
     }
 };
 
+/** @brief A named subcommand (e.g. "commit", "add") with its own argument schema. */
 class SubCommand
 {
     std::vector<Argument> arguments;
@@ -134,6 +149,7 @@ public:
 
     SubCommand(const std::string &name, const std::string &desc) : name(name), description(desc) {}
 
+    /** @brief Registers an argument definition with this subcommand. */
     void add_argument(const Argument &argument)
     {
         int index = arguments.size();
@@ -149,6 +165,15 @@ public:
             positional_indices.push_back(index);
     }
 
+    /**
+     * @brief Parses a token list against this subcommand's schema.
+     *
+     * Handles --long, -s short, --flag=value, and positional args including variadic.
+     * Applies defaults for any optional argument not present in @p args.
+     *
+     * @param args Tokens after the subcommand name (i.e. argv sliced from index 2).
+     * @throws ParseError on unknown flags, missing required args, or type mismatches.
+     */
     ParseResult parse(const std::vector<std::string> &args)
     {
         for (const auto &token : args)
@@ -389,6 +414,7 @@ public:
     }
 };
 
+/** @brief Top-level parser. Owns a set of SubCommands and dispatches argv to the right one. */
 class ArgumentParser
 {
     std::string program_name;
@@ -404,6 +430,14 @@ public:
         return subcommands.at(name);
     }
 
+    /**
+     * @brief Parses argv and dispatches to the matching subcommand.
+     *
+     * @param argc Argument count from main().
+     * @param argv Argument vector from main(). argv[0] is the program name, argv[1] the subcommand.
+     * @returns A pair of {subcommand_name, ParseResult}.
+     * @throws ParseError if argv[1] doesn't match any registered subcommand.
+     */
     std::pair<std::string, ParseResult> parse(int argc, char **argv)
     {
         std::vector<std::string> args;

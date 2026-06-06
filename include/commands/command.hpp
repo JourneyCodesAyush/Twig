@@ -1,8 +1,18 @@
+/**
+ * @file command.hpp
+ * @brief Declarations for all Twig subcommand handlers.
+ *
+ * Each function maps 1:1 to a Git subcommand and receives the parsed
+ * arguments from the top-level ArgumentParser. Implementations live in
+ * command.cpp. main() dispatches to these after parsing argv.
+ */
+
 #pragma once
 
 #include "../errors/error.hpp"
 #include "../argparse/argparse.hpp"
 
+/** @brief One free function per Git subcommand, all returning an ExitCode for main() to return. */
 namespace twig::commands
 {
     errors::ExitCode cmd_init(const ParseResult &args);
