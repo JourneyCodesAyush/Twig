@@ -10,6 +10,13 @@ A minimal Git implementation in C++, built from scratch. Twig can initialize rep
 
 ---
 
+## Bootstrapping
+
+One commit in this repository's history was made using Twig itself.
+
+
+---
+
 ## Commands
 
 | Command        | Description                                       |
