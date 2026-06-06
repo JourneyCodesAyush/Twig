@@ -1,5 +1,4 @@
 #include <fstream>
-#include <sstream>
 #include <filesystem>
 
 #include "../include/ignore/ignore.hpp"

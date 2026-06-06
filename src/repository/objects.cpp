@@ -5,7 +5,6 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <exception>
 
 #include "../include/repository/objects.hpp"
 #include "../include/utils/utils.hpp"
