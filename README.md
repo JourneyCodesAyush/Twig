@@ -12,7 +12,7 @@ A minimal Git implementation in C++, built from scratch. Twig can initialize rep
 
 ## Bootstrapping
 
-One commit in this repository's history was made using Twig itself.
+One commit in this repository's history was made using Twig itself: [docs(readme): add 'Bootstrapping' section](https://github.com/journeycodesayush/twig/commit/1956dd2)
 
 
 ---
