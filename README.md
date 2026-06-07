@@ -1,5 +1,9 @@
 # Twig
 
+<p align="center">
+  <img src="https://img.shields.io/badge/status-maintenance%20mode-FFA500?style=for-the-badge&logoColor=white" alt="Maintenance Mode">
+</p>
+
 ![C++](https://img.shields.io/badge/C%2B%2B-20-orange)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20WSL-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -13,7 +17,6 @@ A minimal Git implementation in C++, built from scratch. Twig can initialize rep
 ## Bootstrapping
 
 One commit in this repository's history was made using Twig itself: [docs(readme): add 'Bootstrapping' section](https://github.com/journeycodesayush/twig/commit/1956dd2)
-
 
 ---
 
